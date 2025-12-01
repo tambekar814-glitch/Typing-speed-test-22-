@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Typing Speed Tester</title>
+<style>
+body { 
+    margin:0;
+     padding:0;
+      font-family: Arial,sans-serif;
+       background:#f1f1f1; 
+    }
+.wrapper { 
+    max-width:900px;
+     margin:30px auto;
+      padding:20px;
+       background:white;
+        border-radius:10px; 
+        box-shadow:0 0 15px rgba(0,0,0,0.2); 
+    }
+h1 { 
+    text-align:center;
+     margin-bottom:20px;
+     }
+#givenText { 
+     background:#e6e6e6;
+      padding:15px;
+       border-radius:8px;
+        min-height:90px;
+         font-size:18px;
+          white-space:pre-wrap;
+         }
+#typedText {
+    
+    width:100%; 
+    height:90px;
+     margin-top:15px; 
+     padding:12px; 
+     font-size:18px; 
+     border:2px solid #444;
+      border-radius:8px;
+       outline:none; }
+.stats {
+     display:flex;
+      flex-wrap:wrap;
+       gap:25px;
+        margin:20px 0;
+         font-size:18px;
+         }
+.progressBox {
+     width:100%; 
+     height:10px;
+      background:rgb(220,220,220);
+       border-radius:5px; 
+       margin-bottom:20px; }
+.progressBar { 
+    width:0%;
+     height:100%;
+      background:#28a745;
+       border-radius:5px; }
+button { padding:10px 18px;
+     margin-right:10px;
+      margin-top:10px;
+       border:none;
+        border-radius:8px;
+         background:#007bff;
+          font-size:16px;
+           color:white;
+            cursor:pointer;
+         }
+button:hover {
+     background:#005ec4;
+     }
+#overlayStar {
+     position:fixed; 
+     left:50%; 
+     bottom:50px;
+      transform:translateX(-50%);
+       pointer-events:none; 
+       z-index:999; }
+#overlayStar span 
+{ 
+    font-size:60px; 
+    color:gold; opacity:0;
+     transform:scale(0.5); 
+     transition: transform 0.4s ease, opacity 0.4s ease;
+     }
+#overlayStar span.show { 
+    opacity:1; 
+    transform:scale(1.2); 
+}
+#message {
+     text-align:center;
+      font-size:18px;
+       margin-top:10px;
+        color:#007bff;
+         }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h1>Typing Speed Teste </h1>
+    <div id="givenText">Click START to begin...</div>
+    <textarea id="typedText" placeholder="Start typing here..." disabled></textarea>
+    <div class="progressBox"><div class="progressBar" id="progressBar"></div></div>
+    <div class="stats">
+        <div>WPM: <span id="wpm">0</span></div>
+        <div>Accuracy: <span id="accuracy">0%</span></div>
+        <div>Errors: <span id="errors">0</span></div>
+        <div>Typed: <span id="typed">0</span></div>
+        <div>Time: <span id="time">0</span>s</div>
+    </div>
+    <button id="startBtn">Start</button>
+    <button onclick="resetTest()" style="background:#dc3545;">Reset</button>
+    <div id="message"></div>
+    <audio id="wrongSound" src="https://www.soundjay.com/button/beep-07.mp3" preload="auto"></audio>
+</div>
+
+<div id="overlayStar"><span id="centerStar">★</span></div>
+
+<script>
+const given = document.getElementById("givenText");
+const typed = document.getElementById("typedText");
+const progressBar = document.getElementById("progressBar");
+const centerStar = document.getElementById("centerStar");
+const wrongSound = document.getElementById("wrongSound");
+const message = document.getElementById("message");
+const startBtn = document.getElementById("startBtn");
+
+let seconds = 0, timer, running = false;
+let correct = 0, wrong = 0;
+let passageIndex = 0;
+
+const passages = [
+    "ulie and Peter are good friends from their school days and had habitsof going on tracking to nearby forest and mountains. One day when theyare returning home after tracking they lost their way to home. Theytried numerous ways but could not able to track the way. After.",
+    "Strike is the stoppage of work by employees against any regulationsimposed on them by the management or stoppage of work to get theirdemands fulfilled. Earlier it was used by industrial workers as aneffective weapon against their exploitation and tyranny by theirmasters but now even the highly.",
+    "Have you seen or used to a computer ? Computers have brought aboutmany changes in the way we do things. One of the most amazing featuresof the computer worlds is the Internet or.",
+    "Once you have gathered or given the information on the internet, youcan log off, that is, give instructions to your computer to getdisconnected from from the net. The internet is like an ocean ofinformation. You may wonder.",
+    "Julie and Peter are good friends from their school days and had habitsof going on tracking to nearby forest and mountains. One day when theyare returning home after",
+    "visit to a historical monument is always an exciting experience. It isa fascinating adventure. I had one such experience during the lastsummer vacations, when I visited Delhi.We reached Delhi by train.After some rest,.",
+    "Sir, I would like to express my gratitude to the hon. Minister forbringing the Bill. It was a matter of concern for long as to.",
+    " What comes to mind when you think of Canada? I know it's super coldthere. Is it a part of the States? Is it the land of immigrants'right? Is it true they have free universal healthcare? A lot of uswouldn't know.",
+    "The ultimate entertainment and leisure destination! This is how wewere introduced to this wonderland at the Fairmount Royal York hotelin Toronto during the IIFA awards. Sprawling across acres of landlocated at the 'apex' of the.",
+    "Talking of temperatures it seemed the air conditioning was turned off.Lets just say the fans earlier had kept the security busy hopping fromone side to another trying to get a peek at their."
+];
+
+function loadPassage() {
+    if (passageIndex >= passages.length) {
+        given.innerHTML = "You have completed all passages!";
+        typed.disabled = true;
+        message.innerText = "";
+        startBtn.style.display = "none";
+        return;
+    }
+    given.innerHTML = passages[passageIndex];
+    typed.value = "";
+    typed.disabled = true;
+    message.innerText = "Click START to begin this passage!";
+    startBtn.innerText = "Start";
+    resetStats();
+}
+
+function resetStats() {
+    progressBar.style.width = "0%";
+    document.getElementById("typed").innerText = 0;
+    document.getElementById("errors").innerText = 0;
+    document.getElementById("wpm").innerText = 0;
+    document.getElementById("accuracy").innerText = "0%";
+    document.getElementById("time").innerText = 0;
+    centerStar.classList.remove("show");
+    seconds = 0;
+    correct = 0;
+    wrong = 0;
+    running = false;
+}
+
+// Start button handler
+startBtn.addEventListener("click", () => {
+    if (startBtn.innerText === "Start") {
+        typed.disabled = false;
+        typed.focus();
+        running = true;
+        message.innerText = "Typing Started!";
+        startBtn.style.display = "none"; // Hide Start while typing
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => {
+            seconds++;
+            document.getElementById("time").innerText = seconds;
+        }, 1000);
+    } else if (startBtn.innerText === "Next") {
+        startBtn.style.display = "inline"; // show Start again
+        loadPassage();
+    }
+});
+
+typed.addEventListener("input", () => {
+    if (!running) return;
+
+    const t = typed.value;
+    const passage = passages[passageIndex];
+    let correctCount = 0, wrongCount = 0;
+    let displayHTML = "";
+
+    for (let i = 0; i < passage.length; i++) {
+        if (i < t.length) {
+            if (t[i] === passage[i]) {
+                displayHTML += `<span style="color:green">${passage[i]}</span>`;
+                correctCount++;
+            } else {
+                displayHTML += `<span style="color:red">${passage[i]}</span>`;
+                wrongCount++;
+                wrongSound.currentTime = 0;
+                wrongSound.play();
+            }
+        } else displayHTML += passage[i];
+    }
+
+    given.innerHTML = displayHTML;
+    correct = correctCount;
+    wrong = wrongCount;
+
+    document.getElementById("typed").innerText = t.length;
+    document.getElementById("errors").innerText = wrongCount;
+    progressBar.style.width = Math.min((t.length / passage.length) * 100, 100) + "%";
+    updateStats();
+
+    if (t.length >= passage.length) finishTest();
+});
+
+function updateStats() {
+    let mins = seconds / 60;
+    let wpm = mins > 0 ? Math.round(correct / 5 / mins) : 0;
+    let acc = (correct + wrong) === 0 ? 100 : ((correct / (correct + wrong)) * 100).toFixed(1);
+    document.getElementById("wpm").innerText = wpm;
+    document.getElementById("accuracy").innerText = acc + "%";
+}
+
+function finishTest() {
+    running = false;
+    clearInterval(timer);
+    typed.disabled = true;
+
+    let mins = seconds / 60;
+    let wpm = mins > 0 ? Math.round(correct / 5 / mins) : 0;
+    let stars = wpm >= 40 ? "★★★" : wpm >= 20 ? "★★☆" : "★☆☆";
+    centerStar.innerText = stars;
+    centerStar.classList.add("show");
+
+    message.innerText = "Passage Completed! Click NEXT for the next passage.";
+    startBtn.innerText = "Next";
+    startBtn.style.display = "inline"; // Show Next button
+    passageIndex++;
+}
+
+function resetTest() {
+    clearInterval(timer);
+    passageIndex = 0;
+    startBtn.style.display = "inline";
+    loadPassage();
+}
+
+// Load first passage
+loadPassage();
+</script>
+
+</body>
+</html>
